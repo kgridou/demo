@@ -100,13 +100,21 @@ jobs:
         # Wait a bit for the service to be fully ready
         sleep 10
 
-        # Test the service endpoint
-        echo "Testing service endpoint..."
-        curl -f -s -o /dev/null -w "%{http_code}" $SERVICE_URL || echo "Service call failed"
+        # Test the actuator health endpoint
+        echo "Testing /actuator/health endpoint..."
+        HTTP_CODE=$(curl -f -s -o /dev/null -w "%{http_code}" $SERVICE_URL/actuator/health || echo "000")
+        echo "Health check returned: $HTTP_CODE"
 
-        # Try to get a response (adjust endpoint based on your app)
-        echo "Attempting to call service..."
-        curl -v $SERVICE_URL || echo "Could not reach service"
+        if [ "$HTTP_CODE" = "200" ]; then
+          echo "✅ Health check passed!"
+        else
+          echo "❌ Health check failed with code: $HTTP_CODE"
+          exit 1
+        fi
+
+        # Get detailed health response
+        echo "Health endpoint response:"
+        curl -s $SERVICE_URL/actuator/health | jq '.' || curl -s $SERVICE_URL/actuator/health
 
   docker-lint:
     runs-on: ubuntu-latest
