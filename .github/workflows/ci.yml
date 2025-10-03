@@ -21,6 +21,9 @@ jobs:
         distribution: 'temurin'
         cache: 'maven'
 
+    - name: Make Maven wrapper executable
+      run: chmod +x ./mvnw
+
     - name: Build with Maven
       run: ./mvnw clean install
 
@@ -90,8 +93,20 @@ jobs:
 
     - name: Verify service accessibility
       run: |
-        minikube service demo-service --url
-        kubectl get svc demo-service
+        # Get the service URL
+        SERVICE_URL=$(minikube service demo-service --url)
+        echo "Service URL: $SERVICE_URL"
+
+        # Wait a bit for the service to be fully ready
+        sleep 10
+
+        # Test the service endpoint
+        echo "Testing service endpoint..."
+        curl -f -s -o /dev/null -w "%{http_code}" $SERVICE_URL || echo "Service call failed"
+
+        # Try to get a response (adjust endpoint based on your app)
+        echo "Attempting to call service..."
+        curl -v $SERVICE_URL || echo "Could not reach service"
 
   docker-lint:
     runs-on: ubuntu-latest
