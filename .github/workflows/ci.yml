@@ -97,18 +97,28 @@ jobs:
         SERVICE_URL=$(minikube service demo-service --url)
         echo "Service URL: $SERVICE_URL"
 
-        # Wait a bit for the service to be fully ready
-        sleep 10
+        # Wait for pods to be fully ready with more time
+        echo "Waiting for application to be ready..."
+        kubectl wait --for=condition=ready pod -l app=demo --timeout=300s
+
+        # Additional wait for application startup
+        sleep 15
+
+        # Test basic connectivity first
+        echo "Testing basic connectivity..."
+        curl -v --connect-timeout 10 $SERVICE_URL || echo "Connection failed"
 
         # Test the actuator health endpoint
         echo "Testing /actuator/health endpoint..."
-        HTTP_CODE=$(curl -f -s -o /dev/null -w "%{http_code}" $SERVICE_URL/actuator/health || echo "000")
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 $SERVICE_URL/actuator/health)
         echo "Health check returned: $HTTP_CODE"
 
         if [ "$HTTP_CODE" = "200" ]; then
           echo "✅ Health check passed!"
         else
           echo "❌ Health check failed with code: $HTTP_CODE"
+          echo "Checking pod logs for errors..."
+          kubectl logs -l app=demo --tail=100
           exit 1
         fi
 
